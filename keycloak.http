@@ -1,0 +1,1 @@
+GET https://tdsoft-auth.hsborges.dev/realms/trabalho-pratico/.well-known/openid-configuration
