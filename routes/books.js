@@ -1,152 +1,63 @@
-import { Router } from "express";
+import express from "express";
 import keycloak from "../keycloak.js";
+import { Book } from "../models/book.js";
 
-const router = Router();
+const router = express.Router();
 
-let books = [];
+router.post("/", keycloak.protect(), async (req, res) => {
+    const { title, author } = req.body;
+    const userId = req.kauth.grant.access_token.content.sub;
 
-/**
- * @swagger
- * tags:
- *   name: Books
- *   description: Gerenciamento de Livros
- */
-
-/**
- * @swagger
- * /api/books:
- *   get:
- *     summary: Retorna todos os livros
- *     tags: [Books]
- *     responses:
- *       200:
- *         description: Lista de livros
- */
-router.get("/", keycloak.protect(),(req, res) => {
-    res.json(books);
+    try {
+        const newBook = new Book({
+            title,
+            author,
+            userId,
+        });
+        await newBook.save();
+        res.status(201).json(newBook);
+    } catch (error) {
+        res.status(500).json({ message: "Erro ao salvar o livro", error });
+    }
 });
 
-/**
- * @swagger
- * /api/books/{id}:
- *   get:
- *     summary: Retorna um livro pelo ID
- *     tags: [Books]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: ID do livro
- *     responses:
- *       200:
- *         description: Livro encontrado
- *       404:
- *         description: Livro não encontrado
- */
-router.get("/:id", keycloak.protect(),(req, res) => {
-    const book = books.find((b) => b.id === parseInt(req.params.id));
-    if (!book) return res.status(404).json({ error: "Livro não encontrado" });
-    res.json(book);
+router.put("/:id", keycloak.protect(), async (req, res) => {
+    const { id } = req.params;
+    const { title, author } = req.body;
+    const userId = req.kauth.grant.access_token.content.sub;
+
+    try {
+        const book = await Book.findById(id);
+
+        if (book.userId !== userId) {
+            return res.status(403).json({ message: "Você não tem permissão para editar este livro." });
+        }
+
+        book.title = title;
+        book.author = author;
+        await book.save();
+        res.status(200).json(book);
+    } catch (error) {
+        res.status(500).json({ message: "Erro ao editar o livro", error });
+    }
 });
 
-/**
- * @swagger
- * /api/books:
- *   post:
- *     summary: Adiciona um novo livro
- *     tags: [Books]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               author:
- *                 type: string
- *               year:
- *                 type: integer
- *     responses:
- *       201:
- *         description: Livro criado com sucesso
- */
-router.post("/", keycloak.protect(),(req, res) => {
-    const { title, author, year } = req.body;
-    const newBook = { id: books.length + 1, title, author, year };
-    books.push(newBook);
-    res.status(201).json(newBook);
-});
+router.delete("/:id", keycloak.protect(), async (req, res) => {
+    const { id } = req.params;
+    const userId = req.kauth.grant.access_token.content.sub;
 
-/**
- * @swagger
- * /api/books/{id}:
- *   put:
- *     summary: Atualiza um livro existente
- *     tags: [Books]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               author:
- *                 type: string
- *               year:
- *                 type: integer
- *     responses:
- *       200:
- *         description: Livro atualizado com sucesso
- *       404:
- *         description: Livro não encontrado
- */
-router.put("/:id", keycloak.protect(),(req, res) => {
-    const book = books.find((b) => b.id === parseInt(req.params.id));
-    if (!book) return res.status(404).json({ error: "Livro não encontrado" });
+    try {
+        const book = await Book.findById(id);
 
-    const { title, author, year } = req.body;
-    book.title = title || book.title;
-    book.author = author || book.author;
-    book.year = year || book.year;
+        if (book.userId !== userId) {
+            return res.status(403).json({ message: "Você não tem permissão para excluir este livro." });
+        }
 
-    res.json(book);
-});
-
-/**
- * @swagger
- * /api/books/{id}:
- *   delete:
- *     summary: Exclui um livro
- *     tags: [Books]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *     responses:
- *       204:
- *         description: Livro excluído com sucesso
- *       404:
- *         description: Livro não encontrado
- */
-router.delete("/:id", keycloak.protect(),(req, res) => {
-    const bookIndex = books.findIndex((b) => b.id === parseInt(req.params.id));
-    if (bookIndex === -1) return res.status(404).json({ error: "Livro não encontrado" });
-    books.splice(bookIndex, 1);
-    res.status(204).send();
+        await book.remove();
+        res.status(200).json({ message: "Livro excluído com sucesso!" });
+    } catch (error) {
+        res.status(500).json({ message: "Erro ao excluir o livro", error });
+    }
 });
 
 export default router;
