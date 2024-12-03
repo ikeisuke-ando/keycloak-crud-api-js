@@ -20,7 +20,7 @@ const swaggerOptions = {
         info: {
             title: "API CRUD com Keycloak",
             version: "1.0.0",
-            description: "API para CRUD de Tarefas e Livros com proteção por Keycloak",
+            description: "API protegida com Keycloak",
         },
         servers: [
             {
@@ -36,10 +36,35 @@ const swaggerOptions = {
                 },
             },
         },
-        security: [{ bearerAuth: [] }],
+        security: [
+            {
+                bearerAuth: [],
+            },
+        ],
     },
     apis: ["./routes/*.js"],
 };
+
+app.use(
+    "/api-docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerJsdoc(swaggerOptions), {
+        swaggerOptions: {
+            authAction: {
+                bearerAuth: {
+                    name: "bearerAuth",
+                    schema: {
+                        type: "http",
+                        scheme: "bearer",
+                        bearerFormat: "JWT",
+                    },
+                    value: "Bearer <seu-token-jwt>",
+                },
+            },
+        },
+    })
+);
+
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
