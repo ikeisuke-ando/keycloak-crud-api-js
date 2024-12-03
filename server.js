@@ -58,7 +58,7 @@ app.use(
                         scheme: "bearer",
                         bearerFormat: "JWT",
                     },
-                    value: "Bearer <seu-token-jwt>",
+                    value: "Bearer " . process.env.JWT_TOKEN,
                 },
             },
         },
